@@ -1,16 +1,19 @@
-function [] = annealing(mloc, c)
+function [loc_, costRecord] = annealing(mloc, c)
 % Simulated Annealing
 
     %% Initialization
     % Configurations of SA
-    maxIterations = 60000;
+    maxIterations = 100000;
     numCandPerIteration = 100;
     decTempCount = 300;
-    sigma = 21;  % temperature, 
+    sigma = 23;  % temperature, 
         % sigma = 1/alpha = 20 ... 0.05
     record = zeros(numCandPerIteration, 4);  % [index, x, y, expCost]
     decCount = 0;  % Only add 1 when a better move is found
-    randCount = 0; 
+    randCount = 0;
+    stayCount = 0;
+    cycle = 100;  % print and record cycle
+    costRecord = zeros(maxIterations / cycle, 2);
     % Initialization for locations
     N = 1500;  % Total number of points
     l = 100;  % Length (both edge)
@@ -36,24 +39,37 @@ function [] = annealing(mloc, c)
     for i = 1:maxIterations
 
         % print
-        cycle = 100;
         if mod(i, cycle) == 0
             
-            fprintf('\nIter:%d  cost:%d  fail:%d/%d', i, cost_, randCount, cycle);
+            fprintf('\nIter:%d  cost:%d  dec:%d/%d  fail:%d/%d', i, cost_, decCount, decTempCount, randCount, cycle);
+            costRecord(i/cycle, 1) = cost_;
+            costRecord(i/cycle, 2) = sigma;
             randCount = 0;
+            stayCount = stayCount + 1;
+            if stayCount > 10
+            
+                decCount = decTempCount;
+                fprintf('\nSkip this sigma.');
+            end
         end
         % Whether to cool down
         if (decCount == decTempCount)
 
-            if sigma > 1
-                sigma = sigma - 0.5;
-            elseif sigma > 0.1
-                sigma = sigma - 0.1;
+            if sigma > 15
+                sigma = sigma - 0.4;
+            elseif sigma > 3
+                sigma = sigma - 2;
+            elseif sigma > 0.9
+                sigma = sigma - 0.3;
+            elseif sigma > 0.5
+                decTempCount = 50;
+                sigma = sigma - 0.05;
             elseif sigma > 0.01
                 sigma = sigma - 0.01;
             end
             decCount = 0;
-            fprintf('\n== Current sigma: %f ===', sigma);
+            stayCount = 0;
+            fprintf('\n==== Current sigma: %f ====', sigma);
             UpdateFigure(loc_, mloc, C, f2, f3, f4, sigma);
         end
 
@@ -97,6 +113,9 @@ function [] = annealing(mloc, c)
             randCount = randCount + 1;
         end
     end
+    
+    %% output
+    
 end
 
 
