@@ -15,7 +15,7 @@ function [loc_, costRecord] = annealing(mloc, c)
     cycle = 100;  % print and record cycle
     costRecord = zeros(maxIterations / cycle, 2);
     % Initialization for locations
-    N = 1500;  % Total number of points
+    N = 2500;  % Total number of points
     l = 100;  % Length (both edge)
     loc_ = rand(N, 2) * l;
     C = [c, zeros(length(c), 1)];  % First col true observations, second col current obs
@@ -46,7 +46,7 @@ function [loc_, costRecord] = annealing(mloc, c)
             costRecord(i/cycle, 2) = sigma;
             randCount = 0;
             stayCount = stayCount + 1;
-            if stayCount > 10
+            if stayCount > 7 && decCount/decTempCount < 0.33
             
                 decCount = decTempCount;
                 fprintf('\nSkip this sigma.');
@@ -55,18 +55,16 @@ function [loc_, costRecord] = annealing(mloc, c)
         % Whether to cool down
         if (decCount == decTempCount)
 
-            if sigma > 15
-                sigma = sigma - 0.4;
-            elseif sigma > 3
-                sigma = sigma - 2;
-            elseif sigma > 0.9
-                sigma = sigma - 0.3;
-            elseif sigma > 0.5
+            if sigma > 14.1, sigma = sigma - 0.3;end
+            if sigma > 3.1 && sigma <=14.1, sigma = sigma - 1;end
+            if sigma > 0.91 && sigma <=3.1, sigma = sigma - 0.3;end
+            if sigma > 0.51 && sigma <=0.91
                 decTempCount = 50;
-                sigma = sigma - 0.05;
-            elseif sigma > 0.01
                 sigma = sigma - 0.01;
             end
+            if sigma > 0.011 && sigma <=0.51, sigma = sigma - 0.01;end
+            if sigma > 0.0011 && sigma <=0.011, sigma = sigma - 0.001;end
+            if sigma <= 0.001, sigma = 0.0011;end
             decCount = 0;
             stayCount = 0;
             fprintf('\n==== Current sigma: %f ====', sigma);
@@ -78,6 +76,10 @@ function [loc_, costRecord] = annealing(mloc, c)
 
             % get a random move and re-evaluate
             k = randi(N);
+            while (sigma < 10) && (loc_(k, 1) == 0 || loc_(k, 2)==0 || loc_(k, 1)==l || loc_(k, 2)==l)
+            
+                k = randi(N);
+            end
             record(j, 1) = k;
             delta = normrnd(0, sigma, [1, 2]);  % random move dir and mag
             delta_x = delta(1);
