@@ -3,7 +3,7 @@ function [loc_, costRecord] = annealing(mloc, c)
 
     %% Initialization
     % Configurations of SA
-    maxIterations = 100000;
+    maxIterations = 400000;
     numCandPerIteration = 100;
     decTempCount = 300;
     sigma = 23;  % temperature, 
@@ -55,16 +55,18 @@ function [loc_, costRecord] = annealing(mloc, c)
         % Whether to cool down
         if (decCount == decTempCount)
 
-            if sigma > 14.1, sigma = sigma - 0.3;end
-            if sigma > 3.1 && sigma <=14.1, sigma = sigma - 1;end
-            if sigma > 0.91 && sigma <=3.1, sigma = sigma - 0.3;end
-            if sigma > 0.51 && sigma <=0.91
-                decTempCount = 50;
-                sigma = sigma - 0.01;
+            if (stayCount > 4)
+                if sigma > 14.1, sigma = sigma - 0.35;end
+                if sigma > 3.1 && sigma <=14.1, sigma = sigma - 1;end
+                if sigma > 0.91 && sigma <=3.1, sigma = sigma - 0.3;end
+                if sigma > 0.51 && sigma <=0.91
+                    decTempCount = 50;
+                    sigma = sigma - 0.01;
+                end
+                if sigma > 0.011 && sigma <=0.51, sigma = sigma - 0.01;end
+                if sigma > 0.0011 && sigma <=0.011, sigma = sigma - 0.001;end
+                if sigma <= 0.001, sigma = 0.0011;end
             end
-            if sigma > 0.011 && sigma <=0.51, sigma = sigma - 0.01;end
-            if sigma > 0.0011 && sigma <=0.011, sigma = sigma - 0.001;end
-            if sigma <= 0.001, sigma = 0.0011;end
             decCount = 0;
             stayCount = 0;
             fprintf('\n==== Current sigma: %f ====', sigma);
@@ -250,13 +252,13 @@ function [] = UpdateFigure(loc, mloc, C, f2, f3, f4, sigma)
     cla(f4);
     subplot(2, 2, 4);
     c_ = C(:, 1) - C(:, 2);
-    filter = (c_ > 1) | (c_ < -1);
+    filter = (c_ > 0) | (c_ < 0);
     scatter3(mloc(filter, 1), mloc(filter, 2), c_(filter), 8, c_(filter));
     colorbar
     xlim([0 100])
     ylim([0 90])
     view(2);
-    title('Difference |delta|>1');
+    title('Difference |delta|>0');
     
     shg
 end
