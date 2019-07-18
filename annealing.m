@@ -1,13 +1,19 @@
-function [loc_, costRecord] = annealing(mloc, c)
+function [loc_, costRecord] = annealing(mloc, c, prior)
 % Simulated Annealing
 
     %% Initialization
     % Configurations of SA
-    maxIterations = 400000;
-    numCandPerIteration = 100;
+    maxIterations = 20000;
+    numCandPerIteration = 80;
     decTempCount = 300;
-    sigma = 23;  % temperature, 
+    if nargin < 3
+        sigma = 23;  % temperature, 
         % sigma = 1/alpha = 20 ... 0.05
+    else
+        sigma = 0.3;
+        numCandPerIteration = 80;
+        % decTempCount = 25;
+    end
     record = zeros(numCandPerIteration, 4);  % [index, x, y, expCost]
     decCount = 0;  % Only add 1 when a better move is found
     randCount = 0;
@@ -15,9 +21,13 @@ function [loc_, costRecord] = annealing(mloc, c)
     cycle = 100;  % print and record cycle
     costRecord = zeros(maxIterations / cycle, 2);
     % Initialization for locations
-    N = 2500;  % Total number of points
+    N = 2000;  % Total number of points
     l = 100;  % Length (both edge)
-    loc_ = rand(N, 2) * l;
+    if nargin < 3
+        loc_ = rand(N, 2) * l;
+    else
+        loc_ = prior;
+    end
     C = [c, zeros(length(c), 1)];  % First col true observations, second col current obs
     % figure
     f = figure('Name', 'Annealing');
@@ -35,7 +45,7 @@ function [loc_, costRecord] = annealing(mloc, c)
     %% Simulated Annealing
     [grid_mloc, grid_num] = SplitMloc(mloc, l);
     [cost_, C] = CalculateCost(loc_, mloc, grid_mloc, grid_num, C, l);
-    UpdateFigure(loc_, mloc, C, f2, f3, f4, sigma);  % First plot
+    UpdateFigure(loc_, mloc, C, f2, f3, f4, sigma, N);  % First plot
     for i = 1:maxIterations
 
         % print
@@ -52,25 +62,80 @@ function [loc_, costRecord] = annealing(mloc, c)
                 fprintf('\nSkip this sigma.');
             end
         end
+        
+        % Narrorw down rand area
+        if mod(i, 5000) == 1
+        
+            fprintf('\n>>>>> Re-evaluating random size...');
+            
+            C_ = C(:, 1) - C(:, 2);
+            grid = zeros(l, l);
+            r = ceil(sigma * 3);
+            % grid has potential
+            for j = 1:size(mloc, 1)
+
+                if C_(j) == 0, continue;end
+                
+                xx = ceil(mloc(j, 1));
+                yy = ceil(mloc(j, 2));
+                for xxi = xx-r:xx+r
+                    for yyj = yy-r:yy+r
+                    
+                        if xxi<1 || yyj<1 || xxi>l || yyj>l
+
+                            continue;
+                        end
+                        grid(xxi, yyj) = 1;
+                    end
+                end
+            end
+            
+            % points have potential
+            potential = zeros(N, 1);
+            potential_num = 0;
+            discard = zeros(N, 1);
+            discard_num = 0;
+            for j = 1:N
+            
+                xx = ceil(loc_(j, 1));
+                yy = ceil(loc_(j, 2));
+                if xx == 0, xx = 1;end
+                if yy == 0, yy = 1;end
+                if grid(xx, yy) == 1
+                    potential_num = potential_num + 1;
+                    potential(potential_num) = j;
+                else
+                    discard_num = discard_num + 1;
+                    discard(discard_num) = j;
+                end
+            end
+            loc_(1:N, :) = [loc_(potential(1:potential_num), :); loc_(discard(1:discard_num), :)];
+            N = potential_num;
+            
+            fprintf('\nCurrent random size %d', N);
+        end
+        
         % Whether to cool down
         if (decCount == decTempCount)
 
-            if (stayCount > 4)
-                if sigma > 14.1, sigma = sigma - 0.35;end
+            if true
+                if sigma > 14.1, sigma = sigma - 0.5;end
                 if sigma > 3.1 && sigma <=14.1, sigma = sigma - 1;end
-                if sigma > 0.91 && sigma <=3.1, sigma = sigma - 0.3;end
+                if sigma > 0.91 && sigma <=3.1
+                    sigma = sigma - 0.3;
+                    if sigma<0.91,sigma=0.9;end
+                end
                 if sigma > 0.51 && sigma <=0.91
                     decTempCount = 50;
-                    sigma = sigma - 0.01;
+                    sigma = sigma - 0.02;
                 end
                 if sigma > 0.011 && sigma <=0.51, sigma = sigma - 0.01;end
-                if sigma > 0.0011 && sigma <=0.011, sigma = sigma - 0.001;end
-                if sigma <= 0.001, sigma = 0.0011;end
+                if sigma <=0.1, sigma = 0.1;end
             end
             decCount = 0;
             stayCount = 0;
             fprintf('\n==== Current sigma: %f ====', sigma);
-            UpdateFigure(loc_, mloc, C, f2, f3, f4, sigma);
+            UpdateFigure(loc_, mloc, C, f2, f3, f4, sigma, N);
         end
 
         flag = false;  % Whether find a better loc_
@@ -78,10 +143,6 @@ function [loc_, costRecord] = annealing(mloc, c)
 
             % get a random move and re-evaluate
             k = randi(N);
-            while (sigma < 10) && (loc_(k, 1) == 0 || loc_(k, 2)==0 || loc_(k, 1)==l || loc_(k, 2)==l)
-            
-                k = randi(N);
-            end
             record(j, 1) = k;
             delta = normrnd(0, sigma, [1, 2]);  % random move dir and mag
             delta_x = delta(1);
@@ -119,7 +180,7 @@ function [loc_, costRecord] = annealing(mloc, c)
     end
     
     %% output
-    
+    fprintf('\n========== END ==========\n');
 end
 
 
@@ -231,7 +292,7 @@ function [res] = Update(x, delta, l)
 end
 
 
-function [] = UpdateFigure(loc, mloc, C, f2, f3, f4, sigma)
+function [] = UpdateFigure(loc, mloc, C, f2, f3, f4, sigma, N)
 
     cla(f2);
     subplot(2, 2, 2);
@@ -242,13 +303,18 @@ function [] = UpdateFigure(loc, mloc, C, f2, f3, f4, sigma)
     xlim([0 100])
     ylim([0 90])
     view(2);
-    
+
     cla(f3);
     subplot(2, 2, 3);
-    scatter(loc(:, 1), loc(:, 2), 8, 'filled');
+    hold on
+    scatter(loc(1:N, 1), loc(1:N, 2), 8, 'filled');
+    scatter(loc(N+1:length(loc), 1), loc(N+1:length(loc), 2), 8, 'filled');
+    hold off
+    title(['Current activated points ', num2str(N)]);
+    grid on
     xlim([0 100])
     ylim([0 90])
-    
+
     cla(f4);
     subplot(2, 2, 4);
     c_ = C(:, 1) - C(:, 2);
@@ -259,6 +325,6 @@ function [] = UpdateFigure(loc, mloc, C, f2, f3, f4, sigma)
     ylim([0 90])
     view(2);
     title('Difference |delta|>0');
-    
-    shg
+
+    % shg
 end

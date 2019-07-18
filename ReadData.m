@@ -26,3 +26,5 @@ for i = 1:135
     c1_(1:l, i) = c1__(boolArray);
     c3_(1:l, i) = c3__(boolArray);
 end
+
+load('loc_backup.mat');
